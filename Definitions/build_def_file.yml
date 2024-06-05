@@ -1,0 +1,10 @@
+---
+##################################################################################
+# Datacenter where to look for Sciencelogic licenses
+##################################################################################
+datacenter:
+
+  primary:
+
+    # Available datacenters: STG-HX-DC, RTP-Staging, PAE-HX-DC, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (required) (string)
+    name: 'PAE-HX-DC'

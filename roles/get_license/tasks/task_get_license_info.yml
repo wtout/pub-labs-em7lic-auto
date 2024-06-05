@@ -1,0 +1,98 @@
+---
+# Tasks to get the SL1 license info
+- block:
+  - name: get info for {{ curr_vm }} in {{ curr_folder }}
+    community.vmware.vmware_guest_info:
+      hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+      username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+      password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+      folder: "{{ curr_folder }}"
+      uuid: "{{ curr_uuid }}"
+      validate_certs: no
+    register: reg_guest_info
+    no_log: yes
+    ignore_errors: yes
+  - block:
+    - name: Get the EM7 license info for {{ curr_vm }} in {{ curr_folder }}
+      community.vmware.vmware_vm_shell:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        cluster: "{{ reg_guest_info.instance.hw_cluster }}"
+        validate_certs: false
+        vm_id: "{{ curr_uuid }}"
+        vm_id_type: uuid
+        vm_username: "{{ PLINUX_SUPERUSER_USER }}"
+        vm_password: "{{ PLINUX_SUPERUSER_PASS }}"
+        vm_shell: /opt/em7/bin/silo_mysql
+        vm_shell_args: master -e "select name,ip,organization,qty,lic_type,expiration,lic_status,release_version,patch_level from system_settings_licenses where name regexp \"{{ curr_vm }}\"" > /tmp/license.info
+        wait_for_process: true
+      register: reg_lic
+    - name: fetch the EM7 license info file from {{ curr_vm }} in {{ curr_folder }}
+      community.vmware.vmware_guest_file_operation:
+        hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
+        username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
+        password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
+        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        cluster: "{{ reg_guest_info.instance.hw_cluster }}"
+        validate_certs: false
+        vm_id: "{{ curr_uuid }}"
+        vm_id_type: uuid
+        vm_username: "{{ PLINUX_SUPERUSER_USER }}"
+        vm_password: "{{ PLINUX_SUPERUSER_PASS }}"
+        fetch:
+          src: "/tmp/license.info"
+          dest: "{{ role_path }}/files/{{ curr_vm }}_license.info"
+      environment:
+        http_proxy: ''
+        https_proxy: ''
+    - name: read content of files/{{ curr_vm }}_license.info
+      ansible.builtin.shell: |
+        tail -1 {{ role_path }}/files/{{ curr_vm }}_license.info
+      register: reg_lic_info
+    - name: define license_info
+      ansible.builtin.set_fact:
+        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + reg_lic_info.stdout.split('\t')|join(',')] }}"
+    - name: delete files/{{ curr_vm }}_license.info
+      ansible.builtin.file:
+        path: "{{ role_path }}/files/{{ curr_vm }}_license.info"
+        state: absent
+    rescue:
+    - debug:
+        msg:
+          - "{{ reg_lic }}"
+    - name: define license_info
+      ansible.builtin.set_fact:
+        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,Bad credentials'] }}"
+      when: reg_lic.msg is search('Failed to authenticate')
+    - name: define license_info
+      ansible.builtin.set_fact:
+        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,Secondary DB node. Check license info for ' + curr_vm[:-1] + ('2' if curr_vm is regex('1$') else '1')] }}"
+      when:
+        - reg_lic.msg is search('Failed to execute command')
+        - curr_vm is not search('aio')
+    - name: define license_info
+      ansible.builtin.set_fact:
+        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,DB is offline or not accessible. Requires investigation'] }}"
+      when:
+        - reg_lic.msg is search('Failed to execute command')
+        - curr_vm is search('aio')
+    - name: define license_info
+      ansible.builtin.set_fact:
+        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,' + reg_lic.msg|replace(',',' ')|replace('\n','') + ' Requires investigation'] }}"
+      when: reg_lic.msg is search('system error')
+    - name: define license_info
+      ansible.builtin.set_fact:
+        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,' + reg_lic.msg + '. Requires investigation'] }}"
+      when: reg_lic.msg is search('Unable to find|VMwareTools')
+    when:
+      - reg_guest_info.instance.hw_power_status == 'poweredOn'
+    vars:
+      curr_ip: "{{ reg_guest_info.instance.hw_eth0.ipaddresses|reject('search','[a-z,A-Z]')|list|first if reg_guest_info.instance.hw_eth0.ipaddresses|reject('search','[a-z,A-Z]')|length > 0 else '' }}"
+
+  - name: define license_info
+    ansible.builtin.set_fact:
+      license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',,,,,,,,,Powered off'] }}"
+    when: reg_guest_info.instance.hw_power_status == 'poweredOff'
