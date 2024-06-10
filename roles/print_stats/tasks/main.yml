@@ -4,7 +4,7 @@
   - name: write EM7 license info to file
     ansible.builtin.copy:
       content: "{{ license_info|join('\n') }}"
-      dest: "{{ auto_dir }}/{{ datacenter.primary.name }}_EM7_license_info.csv"
+      dest: "{{ auto_dir }}/{{ build.name|basename|splitext|first|lower }}_EM7_license_info.csv"
     become: "{{ 'yes' if host_os is search('Alma') else 'no' }}"
     when: license_info|default([]) != []
   delegate_to: localhost

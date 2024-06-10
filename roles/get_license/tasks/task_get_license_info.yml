@@ -6,7 +6,7 @@
       hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
       username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
       password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-      datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+      datacenter: "{{ curr_folder.split('/')[1] }}"
       folder: "{{ curr_folder }}"
       uuid: "{{ curr_uuid }}"
       validate_certs: no
@@ -19,7 +19,7 @@
         hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
         username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
         password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        datacenter: "{{ curr_folder.split('/')[1] }}"
         cluster: "{{ reg_guest_info.instance.hw_cluster }}"
         validate_certs: false
         vm_id: "{{ curr_uuid }}"
@@ -35,7 +35,7 @@
         hostname: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['address'] }}"
         username: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['username'] }}"
         password: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['credentials']['password'] }}"
-        datacenter: "{{ hostvars[groups[('dr' if 'dr' in group_names else '') + 'vcenter'][0]]['information']['datacenter'] }}"
+        datacenter: "{{ curr_folder.split('/')[1] }}"
         cluster: "{{ reg_guest_info.instance.hw_cluster }}"
         validate_certs: false
         vm_id: "{{ curr_uuid }}"
@@ -48,6 +48,7 @@
       environment:
         http_proxy: ''
         https_proxy: ''
+      register: reg_fetch_file
     - name: read content of files/{{ curr_vm }}_license.info
       ansible.builtin.shell: |
         tail -1 {{ role_path }}/files/{{ curr_vm }}_license.info
@@ -63,30 +64,49 @@
     - debug:
         msg:
           - "{{ reg_lic }}"
-    - name: define license_info
-      ansible.builtin.set_fact:
-        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,Bad credentials'] }}"
-      when: reg_lic.msg is search('Failed to authenticate')
-    - name: define license_info
-      ansible.builtin.set_fact:
-        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,Secondary DB node. Check license info for ' + curr_vm[:-1] + ('2' if curr_vm is regex('1$') else '1')] }}"
       when:
-        - reg_lic.msg is search('Failed to execute command')
-        - curr_vm is not search('aio')
-    - name: define license_info
-      ansible.builtin.set_fact:
-        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,DB is offline or not accessible. Requires investigation'] }}"
+        - reg_lic is defined
+        - reg_lic is failed
+    - debug:
+        msg:
+          - "{{ reg_fetch_file }}"
       when:
-        - reg_lic.msg is search('Failed to execute command')
-        - curr_vm is search('aio')
+        - reg_fetch_file is defined
+        - reg_fetch_file is failed
     - name: define license_info
       ansible.builtin.set_fact:
-        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,' + reg_lic.msg|replace(',',' ')|replace('\n','') + ' Requires investigation'] }}"
-      when: reg_lic.msg is search('system error')
-    - name: define license_info
-      ansible.builtin.set_fact:
-        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,' + reg_lic.msg + '. Requires investigation'] }}"
-      when: reg_lic.msg is search('Unable to find|VMwareTools')
+        license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,Unable to retrieve license info file'] }}"
+      when:
+        - reg_lic is succeeded
+        - reg_fetch_file.msg is search('Failed to fetch file')
+    - block:
+      - name: define license_info
+        ansible.builtin.set_fact:
+          license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,Bad credentials'] }}"
+        when:
+          - reg_lic.msg is search('Failed to authenticate')
+      - name: define license_info
+        ansible.builtin.set_fact:
+          license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,Secondary DB node. Check license info for ' + curr_vm[:-1] + ('2' if curr_vm is regex('1$') else '1')] }}"
+        when:
+          - reg_lic.msg is search('Failed to execute command')
+          - curr_vm is not search('aio')
+      - name: define license_info
+        ansible.builtin.set_fact:
+          license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,DB is offline or not accessible. Requires investigation'] }}"
+        when:
+          - reg_lic.msg is search('Failed to execute command')
+          - curr_vm is search('aio')
+      - name: define license_info
+        ansible.builtin.set_fact:
+          license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,' + reg_lic.msg|replace(',',' ')|replace('\n','') + ' Requires investigation'] }}"
+        when: reg_lic.msg is search('system error')
+      - name: define license_info
+        ansible.builtin.set_fact:
+          license_info: "{{ license_info|default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + [curr_folder|replace('/vm','') + ',' + curr_vm + ',' + curr_ip + ',,,,,,,,' + reg_lic.msg + '. Requires investigation'] }}"
+        when:
+          - reg_lic.msg is search('Unable to find|VMwareTools')
+      when: reg_lic is failed
     when:
       - reg_guest_info.instance.hw_power_status == 'poweredOn'
     vars:
