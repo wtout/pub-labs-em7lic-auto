@@ -23,11 +23,11 @@ On a newly installed Linux **CentOS 7.7+/AlmaLinux 8+/Ubuntu 22.04** VM that has
 
 6- Download the Ansible automation package
 
-    $> git clone https://wwwin-github.cisco.com/cms-pae/pae-labs-em7lic-auto.git
+    $> git clone https://github.com/wtout/pub-labs-em7lic-auto.git
 
 7- Go to the newly cloned pae-labs-linux-auto directory
 
-    $> cd pae-labs-em7lic-auto
+    $> cd pub-labs-em7lic-auto
 
 ***Note**: you might need to disable the proxy to be able to clone the repository*
 
@@ -42,14 +42,14 @@ The system definition file consists of the following variables:
 
   - **datacenter.primary.name** (_String_): Required. Primary Datacenter name
 
-To create the system inventory without deploying the system, issue the following command from the automation root directory (pae-labs-em7lic-auto):
+To create the system inventory without deploying the system, issue the following command from the automation root directory (pub-labs-em7lic-auto):
 
     $> bash Bash/play_deploy.sh --envname <system-name> --tags none
 
 
 ### System Deployment ###
 
-1- From the automation root directory (pae-labs-em7lic-auto), run the bash script under the Bash directory.
+1- From the automation root directory (pub-labs-em7lic-auto), run the bash script under the Bash directory.
 
     $> bash Bash/play_deploy.sh --envname <system-name>
 
