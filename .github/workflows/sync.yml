@@ -20,8 +20,8 @@ jobs:
     # Runs a single command using the runners shell
     - name: Checkout source repo
       run: |
-        git clone https://${{ env.ORG_NAME }}:${{ env.GITHUB_TOKEN }}@github.com/${{ env.ORG_NAME }}/${{ env.DESTINATION_REPO_NAME }}.git
-        cd ${{ env.DESTINATION_REPO_NAME }}
+        git clone https://${{ env.ORG_NAME }}:${{ env.GITHUB_TOKEN }}@github.com/${{ env.ORG_NAME }}/pub-${{ env.ORIGINAL_REPO_NAME }}.git
+        cd pub-${{ env.ORIGINAL_REPO_NAME }}
         git config user.email \<\>
         git config user.name "Wassim Tout"
         git remote add ${{ env.ORIGINAL_REPO_NAME }} https://${{ env.ORG_NAME }}:${{ env.GITHUB_TOKEN }}@github.com/${{ env.ORIGINAL_REPO_NAME }}.git
@@ -32,4 +32,3 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.WASS }}
         ORIGINAL_REPO_NAME: ${{ github.event.repository.name }}
         ORG_NAME: wtout
-        DESTINATION_REPO_NAME: pub-${{ env.ORIGINAL_REPO_NAME }}
