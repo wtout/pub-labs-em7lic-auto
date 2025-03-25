@@ -53,6 +53,6 @@ kill_container "${CONTAINERNAME}_2"
 disable_logging
 # Phase 3
 start_container "${CONTAINERNAME}_3"
-send_notification "${CONTAINERNAME}_3" "${ORIG_ARGS}"
+SCRIPT_STATUS=$(send_notification "${CONTAINERNAME}_3" "${ORIG_ARGS}")
 kill_container "${CONTAINERNAME}_3"
 exit ${SCRIPT_STATUS}
