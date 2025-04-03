@@ -99,7 +99,7 @@ function add_user_uid_gid() {
 function add_user_docker_group() {
 	local MYID
 	MYID=$(whoami)
-	if [[ "$(get_os)" == "CentOS"* ]] && [[ "$(id "${MYID}" | grep 'domain users')" != '' ]]
+	if [[ $(get_os) == "CentOS"* ]] && [[ "$(id "${MYID}" | grep 'domain users')" != '' ]]
 	then
 		if [[ "$(groups | grep docker)" == "" ]]
 		then
@@ -250,7 +250,7 @@ function start_container() {
 		[[ ! -d ${HOME}/.ssh ]] && mkdir "${HOME}"/.ssh
 		[[ $- =~ x ]] && debug=1 && echo "Starting container ${CNTNRNAME}"
 		[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-		if [[ "${ANSIBLE_LOG_PATH}" == "" ]]
+		if [[ ${ANSIBLE_LOG_PATH} == "" ]]
 		then
 			$(docker_cmd) run --rm -e MYPROXY="${PROXY_ADDRESS}" -e MYHOME="${PWD}" -e MYHOSTNAME="$(hostname)" -e MYCONTAINERNAME="${CNTNRNAME}" -e MYIP="$(get_host_ip)" --user ansible -w "${CONTAINERWD}" -v /data:/data:z -v /tmp:/tmp:z -v "${PWD}":"${CONTAINERWD}":z --name "${CNTNRNAME}" -t -d --entrypoint /bin/bash "${CONTAINERREPO}":"${ANSIBLE_VERSION}" 1>/dev/null
 		else
