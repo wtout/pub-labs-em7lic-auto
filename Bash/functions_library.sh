@@ -58,7 +58,6 @@ function get_envname() {
 function check_arguments() {
 	if [[ ${*} =~ '--envname' ]]
 	then
-#		[[ $(wc -w <<< "$(get_envname_list "${*}")") -ge 2 ]] && printf "\nYou can deploy only one environment at a time. Aborting!\n\n" && exit 1
 		[[ $(wc -w <<< "$(get_envname_list "${*}")") -lt 1 ]] && printf "\nYou need to specify at least one environment. Aborting!\n\n" && exit 1
 	else
 		printf "\nEnvironment name is required!\nRe-run the script with %s--envname%s <environment name as defined under Inventories>\n\n" "${BOLD}" "${NORMAL}"
@@ -100,7 +99,7 @@ function add_user_uid_gid() {
 function add_user_docker_group() {
 	local MYID
 	MYID=$(whoami)
-	if [[ "$(get_os)" == "CentOS"* ]] && [[ "$(id "${MYID}" | grep 'domain users')" != '' ]]
+	if [[ $(get_os) == "CentOS"* ]] && [[ "$(id "${MYID}" | grep 'domain users')" != '' ]]
 	then
 		if [[ "$(groups | grep docker)" == "" ]]
 		then
@@ -251,7 +250,7 @@ function start_container() {
 		[[ ! -d ${HOME}/.ssh ]] && mkdir "${HOME}"/.ssh
 		[[ $- =~ x ]] && debug=1 && echo "Starting container ${CNTNRNAME}"
 		[[ $- =~ x ]] && debug=1 && [[ "${SECON}" == "true" ]] && set +x
-		if [[ "${ANSIBLE_LOG_PATH}" == "" ]]
+		if [[ ${ANSIBLE_LOG_PATH} == "" ]]
 		then
 			$(docker_cmd) run --rm -e MYPROXY="${PROXY_ADDRESS}" -e MYHOME="${PWD}" -e MYHOSTNAME="$(hostname)" -e MYCONTAINERNAME="${CNTNRNAME}" -e MYIP="$(get_host_ip)" --user ansible -w "${CONTAINERWD}" -v /data:/data:z -v /tmp:/tmp:z -v "${PWD}":"${CONTAINERWD}":z --name "${CNTNRNAME}" -t -d --entrypoint /bin/bash "${CONTAINERREPO}":"${ANSIBLE_VERSION}" 1>/dev/null
 		else
@@ -272,7 +271,7 @@ function kill_container() {
 		[[ $- =~ x ]] && debug=1 && echo "Killing container ${CNTNRNAME}"
 		if [[ "${dc}" == "podman" ]]
 		then
-			${dc} container rm "${CNTNRNAME}" &>/dev/null
+			${dc} container rm "${CNTNRNAME}" -f &>/dev/null
 		else
 			${dc} kill "${CNTNRNAME}" &>/dev/null
 		fi
@@ -307,7 +306,7 @@ function check_hosts_limit() {
 		[[ ${MYTAGS} =~ vm_creation|capcheck ]] && UPDATE_ARGS=1
 		if [[ ${UPDATE_ARGS} -eq 1 ]]
 		then
-			if [[ ! ${MYHOSTS} =~ 'dr' ]]
+			if [[ ! ${MYHOSTS} =~ dr ]]
 			then
 				VCENTERS='vcenter'
 			else
@@ -633,6 +632,8 @@ function get_secrets_vault() {
 		CNTNRNAME="${1}"
 		localbranch=$(git branch | grep '^\*'|awk '{print $NF}')
 		[[ -z ${localbranch} ]] && echo "Unable to determine the current branch. Exiting!" && exit 1
+		[[ ${localbranch,,} =~ release|feature ]] && localbranch='develop'
+		[[ ${localbranch,,} =~ hotfix ]] && localbranch='master'
 		remotebranchlist=$(git branch -r)
 		if echo "${remotebranchlist}" | grep -q '/'"${localbranch}"
 		then
@@ -641,8 +642,6 @@ function get_secrets_vault() {
 			REPOPASS=$(read_repo_cred "${CNTNRNAME}" "${2}" "${3}" "REPOPASS")
 			REPOPWD="${REPOPASS//@/%40}"
 			[[ "$(git config --file .git/config --get remote.origin.url | grep '\/\/.*@')" == "" ]] && REMOTEURL=$(git config --file .git/config --get remote.origin.url | sed -e "s|//\(\w\)|//${REPOUSER}:${REPOPWD}@\1|") || REMOTEURL=$(git config --file .git/config --get remote.origin.url | sed -e "s|//.*@|//${REPOUSER}:${REPOPWD}@|")
-			[[ ${localbranch,,} =~ release|feature ]] && localbranch='develop'
-			[[ ${localbranch,,} =~ hotfix ]] && localbranch='master'
 			for i in {1..3}
 			do
 				git clone --branch "${localbranch}" --single-branch "$(echo "${REMOTEURL}" | sed -e "s|pub-||" -e "s|auto|auto-secrets|")" .tmp &>"${ANSIBLE_LOG_LOCATION}"/"${PID}"-get-secrets-vault.stderr && break || CLONE_FAILED="true"
@@ -849,7 +848,7 @@ function run_playbook() {
 	CNTNRNAME="${1}"
 	# shellcheck disable=SC2001
 	ANSIBLE_CMD_ARGS=$(echo "${*}" | sed "s/${CNTNRNAME} //")
-	if [[ "${GET_INVENTORY_STATUS}" -eq 0 ]]
+	if [[ ${GET_INVENTORY_STATUS} -eq 0 ]]
 	then
 		### Begin: Define the extra-vars argument list
 		local EVARGS
@@ -899,13 +898,14 @@ function send_notification() {
 	CNTNRNAME="${1}"
 	# shellcheck disable=SC2001
 	ANSIBLE_CMD_ARGS=$(echo "${*}" | sed "s/${CNTNRNAME} //")
-	if [[ "$(check_mode "${ANSIBLE_CMD_ARGS}")" == " " ]]
+	if [[ $(check_mode "${ANSIBLE_CMD_ARGS}") == " " ]]
 	then
 		SCRIPT_ARG="${ANSIBLE_CMD_ARGS//-/dash}"
 		# Send playbook status notification
 		NOTIF_ARGS=$(echo "${ANSIBLE_CMD_ARGS}" | tr ' ' '\n' | sed -e '/--limit\|-l\|--envname/,+1d' | tr '\n' ' ')
 		# shellcheck disable=SC2086
 		$(docker_cmd) exec -t "${CNTNRNAME}" ansible-playbook playbooks/notify.yml --extra-vars "{SVCFILE: '${CONTAINERWD}/${SVCVAULT}', SNAME: '$(basename "${0}")', SARG: '${SCRIPT_ARG}', LFILE: '${CONTAINERWD}/${NEW_LOG_FILE}'}" --tags notify -e @"${SVCVAULT}" --vault-password-file Bash/get_common_vault_pass.sh -e @"${ANSIBLE_VARS}" ${NOTIF_ARGS} -v &>/dev/null
-		echo "${?}"
+		# shellcheck disable=SC2034
+		SCRIPT_STATUS=${?}
 	fi
 }

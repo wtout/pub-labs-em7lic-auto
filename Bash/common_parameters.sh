@@ -1,4 +1,4 @@
-source "$(dirname "${0}")"/functions_library.sh
+source "$(dirname "${0}")/functions_library.sh"
 
 # Parameters definition
 ANSIBLE_CFG="ansible.cfg"
