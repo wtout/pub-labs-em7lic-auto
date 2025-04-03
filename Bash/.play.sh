@@ -1,4 +1,4 @@
-source $(dirname "${0}")/common_parameters.sh
+source "$(dirname "${0}")"/common_parameters.sh
 
 # Main
 PID="${$}"
@@ -53,6 +53,6 @@ kill_container "${CONTAINERNAME}_2"
 disable_logging
 # Phase 3
 start_container "${CONTAINERNAME}_3"
-SCRIPT_STATUS=$(send_notification "${CONTAINERNAME}_3" "${ORIG_ARGS}")
+send_notification "${CONTAINERNAME}_3" "${ORIG_ARGS}"
 kill_container "${CONTAINERNAME}_3"
 exit ${SCRIPT_STATUS}
