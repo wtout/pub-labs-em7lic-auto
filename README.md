@@ -10,7 +10,7 @@ This repository contains Ansible playbooks to be used in the retrieval of Scienc
 
 ### Disclaimer ###
 
-The deployment procedure has to be the same for all deployments. Ansible code contained in this repository is to automate the standard deployment procedure. Customization for a given deployment is limited to the environment variables used during installation. Do not modify the Ansible code on the fly during installation. Ansible code is NOT meant to be touched/edited except in the context of standard deployment procedure automation development. The usage information below gives the user the needed information to set up and execute the supported automated procedures.
+The automated procedure has to be the same for all deployments. Ansible code contained in this repository is to automate the standard deployment procedure. Customization for a given deployment is limited to the environment variables used during installation. Do not modify the Ansible code on the fly during installation. Ansible code is NOT meant to be touched/edited except in the context of standard deployment procedure automation development. The usage information below gives the user the needed information to set up and execute the supported automated procedures.
 
 
 ### Installation ###
