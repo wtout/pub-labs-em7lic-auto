@@ -29,20 +29,6 @@
       loop: "{{ playbook_status.stdout_lines | select('regex', '(unreachable=|failed=)[1-9]+') }}"
       loop_control:
         loop_var: line_item
-    - name: Get statistics from {{ LFILE }}
-      ansible.builtin.shell:
-        cmd: |
-          set -o pipefail
-          grep 'faulties_number = ' {{ LFILE }} || echo 'faulties_number not found'
-          grep 'offlines_number = ' {{ LFILE }} || echo 'offlines_number not found'
-          grep 'noupdate_number = ' {{ LFILE }} || echo 'noupdate_number not found'
-          grep 'snaps_number = ' {{ LFILE }} || echo 'snaps_number not found'
-          grep 'snaps_size = ' {{ LFILE }}  || echo 'snaps_size not found'
-          grep 'decomms_number = ' {{ LFILE }} || echo 'decomms_number not found'
-          grep 'deleted_number = ' {{ LFILE }} || echo 'deleted_number not found'
-        executable: /bin/bash
-      register: reg_numbers
-      changed_when: false
     - name: Get user's identity
       ansible.builtin.shell:
         cmd: set -o pipefail && head -4 {{ LFILE }}
