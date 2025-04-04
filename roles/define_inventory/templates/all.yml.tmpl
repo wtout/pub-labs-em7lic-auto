@@ -1,0 +1,20 @@
+---
+# Variables for all hosts
+
+##################################################################################
+# build specific information
+##################################################################################
+build:
+
+  # Environment name
+  name: '{{ SYS_NAME }}'
+
+##################################################################################
+# Datacenter where VM snapshots are to be removed
+##################################################################################
+datacenter:
+
+  primary:
+
+    # Available datacenters: RTP-Staging, PAE-HX-DC-1, PAE-HX-DC-2, PAE-HX-DC-3, PAE-HX-DC-4, Plat-Ops, Dev Engineering, cdra-Build-Development, PAE-Customer-Build, RTP5, Alln1 (string)
+    name: '{{ environment_definition.datacenter.primary.name }}'
