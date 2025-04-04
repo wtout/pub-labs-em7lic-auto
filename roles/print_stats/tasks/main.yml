@@ -1,14 +1,12 @@
 ---
 # Tasks for print_stats
-- name: Main print_stats block
+- name: Write EM7 license info to file
+  ansible.builtin.copy:
+    content: "{{ license_info | join('\n') }}"
+    dest: "{{ auto_dir }}/{{ build.name | basename | splitext | first | lower }}_EM7_license_info.csv"
+    mode: '644'
+  become: "{{ 'true' if host_os | lower is search('almalinux|ubuntu') else 'false' }}"
+  when: license_info | default([]) != []
   delegate_to: localhost
   run_once: true
   tags: ['always', 'print_stats']
-  block:
-    - name: Write EM7 license info to file
-      ansible.builtin.copy:
-        content: "{{ license_info | join('\n') }}"
-        dest: "{{ auto_dir }}/{{ build.name | basename | splitext | first | lower }}_EM7_license_info.csv"
-        mode: '644'
-      become: "{{ 'true' if host_os is search('Alma') else 'false' }}"
-      when: license_info | default([]) != []
