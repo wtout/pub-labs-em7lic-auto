@@ -63,7 +63,7 @@
       ansible.builtin.set_fact:
         license_info: "{{ license_info | \
           default(['Folder,Name,IP Address,Organization,Capacity,License type,Expiration,License status,Release version,Patch level,Issues']) + \
-          [curr_folder | replace('/vm', '') + ',' + reg_lic_info.stdout.split('\t') | join(',')] }}"
+          [curr_folder | replace('/vm', '') + ',' + reg_lic_info.stdout.split('\t') | join(',')] }}" # noqa: no-tabs
     - name: Delete files/{{ curr_vm + '_license.info' }}
       ansible.builtin.file:
         path: "{{ role_path }}/files/{{ curr_vm }}_license.info"
