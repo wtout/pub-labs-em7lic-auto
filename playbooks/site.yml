@@ -1,0 +1,21 @@
+---
+# Validate credentials (always run)
+- name: Validate credentials
+  hosts: all
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  gather_facts: no
+
+  roles:
+    - role: check_creds
+
+# Play to fetch EM7 license info
+- name: Fetch EM7 license info
+  hosts: all
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  gather_facts: no
+
+  roles:
+    - role: get_license
+    - role: print_stats
